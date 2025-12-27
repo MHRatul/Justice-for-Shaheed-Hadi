@@ -110,11 +110,7 @@ app.get('/api/analytics', async (req, res) => {
 });
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Root route - ADD THIS
+// Root route
 app.get('/', (req, res) => {
   res.json({
     message: 'Trial of Shaheed Hadi API',
@@ -123,10 +119,127 @@ app.get('/', (req, res) => {
       'GET /health - Health check',
       'GET /api/config - Get countdown configuration',
       'PUT /api/config - Update configuration',
+      'GET /api/news - Get all active news',
+      'GET /api/news/:id - Get single news item',
+      'POST /api/news - Create news item',
+      'PUT /api/news/:id - Update news item',
+      'DELETE /api/news/:id - Delete news item',
+      'PATCH /api/news/:id/toggle - Toggle news active status',
       'POST /api/analytics/view - Track page view',
       'GET /api/analytics - Get analytics data'
     ]
   });
+});
+
+// ========== NEWS ROUTES ==========
+
+// Get all active news
+app.get('/api/news', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM news WHERE isActive = 1 ORDER BY displayOrder ASC, createdAt DESC'
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching news:', error);
+    res.status(500).json({ error: 'Failed to fetch news' });
+  }
+});
+
+// Get single news item
+app.get('/api/news/:id', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM news WHERE id = ?', [req.params.id]);
+    if (rows.length > 0) {
+      res.json(rows[0]);
+    } else {
+      res.status(404).json({ error: 'News not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching news:', error);
+    res.status(500).json({ error: 'Failed to fetch news' });
+  }
+});
+
+// Create news item
+app.post('/api/news', async (req, res) => {
+  const { content, isActive = 1, displayOrder = 0 } = req.body;
+
+  if (!content) {
+    return res.status(400).json({ error: 'Content is required' });
+  }
+
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO news (content, isActive, displayOrder) VALUES (?, ?, ?)',
+      [content, isActive, displayOrder]
+    );
+
+    res.json({
+      message: 'News created successfully',
+      id: result.insertId
+    });
+  } catch (error) {
+    console.error('Error creating news:', error);
+    res.status(500).json({ error: 'Failed to create news' });
+  }
+});
+
+// Update news item
+app.put('/api/news/:id', async (req, res) => {
+  const { content, isActive, displayOrder } = req.body;
+  const { id } = req.params;
+
+  try {
+    const [result] = await pool.query(
+      'UPDATE news SET content = ?, isActive = ?, displayOrder = ?, updatedAt = NOW() WHERE id = ?',
+      [content, isActive, displayOrder, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'News not found' });
+    }
+
+    res.json({ message: 'News updated successfully' });
+  } catch (error) {
+    console.error('Error updating news:', error);
+    res.status(500).json({ error: 'Failed to update news' });
+  }
+});
+
+// Delete news item
+app.delete('/api/news/:id', async (req, res) => {
+  try {
+    const [result] = await pool.query('DELETE FROM news WHERE id = ?', [req.params.id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'News not found' });
+    }
+
+    res.json({ message: 'News deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting news:', error);
+    res.status(500).json({ error: 'Failed to delete news' });
+  }
+});
+
+// Toggle news active status
+app.patch('/api/news/:id/toggle', async (req, res) => {
+  try {
+    const [result] = await pool.query(
+      'UPDATE news SET isActive = NOT isActive, updatedAt = NOW() WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'News not found' });
+    }
+
+    res.json({ message: 'News status toggled successfully' });
+  } catch (error) {
+    console.error('Error toggling news:', error);
+    res.status(500).json({ error: 'Failed to toggle news status' });
+  }
 });
 
 app.listen(PORT, () => {

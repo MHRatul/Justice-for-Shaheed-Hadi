@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import Banner from './components/Banner';
+import NewsTicker from './components/NewsTicker';
 import CountdownTimer from './components/CountdownTimer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -26,7 +28,13 @@ function App() {
     }
   };
 
-  return <CountdownTimer config={config} />;
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50">
+      <Banner />
+      <NewsTicker />
+      <CountdownTimer config={config} />
+    </div>
+  );
 }
 
 export default App;
